@@ -48,6 +48,8 @@ export function defaultState(): GameState {
     lastDaily: "",
     introSeen: false,
     createdAt: now,
+    gameMode: "progression",
+    combatAlive: true,
   };
 }
 

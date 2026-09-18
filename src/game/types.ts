@@ -53,6 +53,9 @@ export interface GameState {
   lastDaily: string;
   introSeen: boolean;
   createdAt: number;
+  gameMode: "progression" | "farm";
+  /** False while a death is being resolved; blocks further damage. */
+  combatAlive: boolean;
 }
 
 export type TabId = "heroes" | "upgrades" | "skills" | "prestige" | "quests" | "achieve" | "stats" | "settings";
