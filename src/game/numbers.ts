@@ -13,7 +13,7 @@ export function fromNumber(n: number): Dec {
 
 export function toNumber(d: Dec): number {
   if (d.m === 0) return 0;
-  if (d.e > 308) return Infinity;
+  if (d.e > 308) return d.m < 0 ? -Infinity : Infinity;
   if (d.e < -308) return 0;
   return d.m * 10 ** d.e;
 }
@@ -29,6 +29,12 @@ export function normalize(d: Dec): Dec {
     e += shift;
   }
   return { m: sign * m, e };
+}
+
+/** Clamp to non-negative (HP, gold floors). */
+export function clampNonNeg(d: Dec): Dec {
+  if (!isFinite(d.m) || d.m <= 0) return ZERO;
+  return normalize(d);
 }
 
 export function add(a: Dec, b: Dec): Dec {
@@ -66,11 +72,18 @@ export function pow(base: number, exp: number): Dec {
   return normalize({ m, e });
 }
 
+/** Correct comparison including negatives. */
 export function cmp(a: Dec, b: Dec): number {
   const an = normalize(a);
   const bn = normalize(b);
   if (an.m === 0 && bn.m === 0) return 0;
-  if (an.e !== bn.e) return an.e > bn.e ? 1 : -1;
+  if (an.m < 0 && bn.m >= 0) return -1;
+  if (an.m >= 0 && bn.m < 0) return 1;
+  const sameSign = an.m >= 0 ? 1 : -1;
+  if (an.e !== bn.e) {
+    const expCmp = an.e > bn.e ? 1 : -1;
+    return sameSign * expCmp;
+  }
   if (an.m === bn.m) return 0;
   return an.m > bn.m ? 1 : -1;
 }
@@ -100,24 +113,23 @@ export type NumberFormatMode = "short" | "scientific" | "full";
 
 export function formatDec(d: Dec, mode: NumberFormatMode = "short"): string {
   const n = normalize(d);
-  if (n.m === 0) return "0";
-  const sign = n.m < 0 ? "-" : "";
+  if (n.m === 0 || n.m < 0) return "0";
   const m = Math.abs(n.m);
   const e = n.e;
 
   if (mode === "scientific") {
-    return `${sign}${m.toFixed(2)}e${e}`;
+    return `${m.toFixed(2)}e${e}`;
   }
 
   if (mode === "full" && e < 15) {
     const val = m * 10 ** e;
-    return sign + Math.floor(val).toLocaleString("en-US");
+    return Math.floor(val).toLocaleString("en-US");
   }
 
   if (e < 3) {
     const val = m * 10 ** e;
     if (val < 1000) {
-      return sign + (val < 10 && val % 1 !== 0 ? val.toFixed(1) : Math.floor(val).toString());
+      return val < 10 && val % 1 !== 0 ? val.toFixed(1) : Math.floor(val).toString();
     }
   }
 
@@ -126,8 +138,8 @@ export function formatDec(d: Dec, mode: NumberFormatMode = "short"): string {
     const rem = e % 3;
     const shown = m * 10 ** rem;
     const digits = shown >= 100 ? 0 : shown >= 10 ? 1 : 2;
-    return `${sign}${shown.toFixed(digits)}${SUFFIXES[group]}`;
+    return `${shown.toFixed(digits)}${SUFFIXES[group]}`;
   }
 
-  return `${sign}${m.toFixed(2)}e${e}`;
+  return `${m.toFixed(2)}e${e}`;
 }
