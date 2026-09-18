@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(139, 92, 255, 0.18), transparent 50%),
+    radial-gradient(900px 500px at 90% 10%, rgba(124, 240, 255, 0.08), transparent 45%),
+    #07080f;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #7cf0ff;
+  outline-offset: 2px;
+}
+
+.panel {
+  @apply rounded-2xl border border-white/10 bg-panel/80 backdrop-blur-md shadow-[0_0_40px_rgba(0,0,0,0.35)];
+}
+
+.gold-text {
+  background: linear-gradient(180deg, #ffe9a3, #f5c542 45%, #c9891a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hp-shine {
+  background: linear-gradient(90deg, #ff5a3c, #ffb347);
+}
+
+@keyframes floatDmg {
+  0% { transform: translate(-50%, 0) scale(0.85); opacity: 1; }
+  100% { transform: translate(-50%, -42px) scale(1.05); opacity: 0; }
+}
+
+@keyframes shakeHit {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px) scale(0.98); }
+  75% { transform: translateX(4px); }
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+.float-num {
+  animation: floatDmg 0.7s ease-out forwards;
+  pointer-events: none;
+}
+
+.monster-hit {
+  animation: shakeHit 0.18s ease-out;
+}
