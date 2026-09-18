@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ASCEND_MIN_ZONE, BOSS_TIMER, HEROES, MONSTERS_PER_ZONE, OFFLINE_CAP_MS, PRESTIGE, QUESTS, SKILLS, UPGRADES } from "../game/content";
 import { defaultState } from "../game/createState";
 import { essenceForAscend, heroCost, monsterGold, monsterHP, startingGold, upgradeCost } from "../game/formulas";
-import { add, cmp, Dec, formatDec, fromNumber, gte, mul, sub, ZERO } from "../game/numbers";
+import { add, clampNonNeg, cmp, Dec, formatDec, fromNumber, gte, mul, sub, ZERO } from "../game/numbers";
 import type { GameState, TabId } from "../game/types";
 import { dayKey, derive, grantAchievements, loadState, persist, plvl, toApprox } from "./engine";
 
@@ -18,6 +18,7 @@ interface Ctx {
   fmt: (n: Dec) => string; patchSettings: (p: Partial<GameState["settings"]>) => void;
   exportSave: () => string; importSave: (raw: string) => string | null; resetSave: () => void; saveNow: () => void;
   confirmAscend: boolean; setConfirmAscend: (v: boolean) => void; confirmReset: boolean; setConfirmReset: (v: boolean) => void;
+  setGameMode: (m: "progression" | "farm") => void; selectZone: (z: number) => void;
 }
 
 const GameCtx = createContext<Ctx | null>(null);
@@ -41,36 +42,93 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const apply = useCallback((st: GameState) => grantAchievements(st, toast), [toast]);
 
-  const spawn = useCallback((zone: number, killsInZone: number, failedBoss = false) => {
-    const boss = !failedBoss && killsInZone >= MONSTERS_PER_ZONE - 1;
+  const spawn = useCallback((zone: number, killsInZone: number, opts?: { failedBoss?: boolean; farm?: boolean }) => {
+    const failedBoss = opts?.failedBoss ?? false;
+    const farm = opts?.farm ?? false;
+    let kills = failedBoss ? Math.max(0, MONSTERS_PER_ZONE - 2) : Math.max(0, Math.min(killsInZone, MONSTERS_PER_ZONE));
+    const wantBoss = !failedBoss && !farm && kills >= MONSTERS_PER_ZONE;
+    if (wantBoss) kills = MONSTERS_PER_ZONE;
+    const boss = wantBoss;
     const hp = monsterHP(zone, boss);
-    return { monsterHp: hp, monsterMax: hp, bossActive: boss, bossUntil: boss ? Date.now() + BOSS_TIMER * 1000 : 0, killsInZone: failedBoss ? Math.max(0, MONSTERS_PER_ZONE - 2) : killsInZone };
+    return {
+      monsterHp: hp,
+      monsterMax: hp,
+      bossActive: boss,
+      bossUntil: boss ? Date.now() + BOSS_TIMER * 1000 : 0,
+      killsInZone: boss ? MONSTERS_PER_ZONE : Math.min(kills, MONSTERS_PER_ZONE - 1),
+      combatAlive: true,
+    };
   }, []);
 
-  const killMonster = useCallback((st: GameState, now: number): GameState => {
+  const handleEnemyDefeated = useCallback((st: GameState, now: number): GameState => {
     const goldM = derive(st, now).goldMult * (st.bossActive ? 1 + (st.upgradeLevels.bossGold || 0) * 0.2 : 1);
     const gained = mul(monsterGold(st.zone, st.bossActive), fromNumber(goldM));
     let zone = st.zone;
-    let kills = st.killsInZone + 1;
+    let kills = st.killsInZone;
     let bosses = st.stats.bosses;
     let runBosses = st.stats.runBosses;
-    if (st.bossActive) { bosses += 1; runBosses += 1; zone += 1; kills = 0; }
-    const spawned = spawn(zone, kills);
+    const wasBoss = st.bossActive;
+    const farm = st.gameMode === "farm";
+
+    if (wasBoss) {
+      bosses += 1;
+      runBosses += 1;
+      if (!farm) {
+        zone += 1;
+        kills = 0;
+      } else {
+        kills = MONSTERS_PER_ZONE - 2;
+      }
+    } else {
+      kills = Math.min(MONSTERS_PER_ZONE, kills + 1);
+      if (kills >= MONSTERS_PER_ZONE && farm) kills = 0;
+    }
+
+    const spawned = spawn(zone, kills, { farm });
     return apply({
-      ...st, gold: add(st.gold, gained), zone, ...spawned, killsInZone: spawned.killsInZone,
-      stats: { ...st.stats, monsters: st.stats.monsters + 1, bosses, runBosses, highestZone: Math.max(st.stats.highestZone, zone), totalGold: add(st.stats.totalGold, gained), runGold: add(st.stats.runGold, gained) },
-      questProgress: { ...st.questProgress, kills: (st.questProgress.kills || 0) + 1, boss: st.bossActive ? (st.questProgress.boss || 0) + 1 : st.questProgress.boss || 0, zone: Math.max(st.questProgress.zone || 0, zone), gold: toApprox(add(st.stats.runGold, gained)) },
+      ...st,
+      gold: add(st.gold, gained),
+      zone,
+      ...spawned,
+      killsInZone: spawned.killsInZone,
+      combatAlive: true,
+      stats: {
+        ...st.stats,
+        monsters: st.stats.monsters + 1,
+        bosses,
+        runBosses,
+        highestZone: Math.max(st.stats.highestZone, zone),
+        totalGold: add(st.stats.totalGold, gained),
+        runGold: add(st.stats.runGold, gained),
+      },
+      questProgress: {
+        ...st.questProgress,
+        kills: (st.questProgress.kills || 0) + 1,
+        boss: wasBoss ? (st.questProgress.boss || 0) + 1 : st.questProgress.boss || 0,
+        zone: Math.max(st.questProgress.zone || 0, zone),
+        gold: toApprox(add(st.stats.runGold, gained)),
+      },
     });
   }, [apply, spawn]);
 
   const dealDamage = useCallback((st: GameState, raw: Dec, now: number): GameState => {
+    if (!st.combatAlive) return st;
+    if (cmp(st.monsterHp, ZERO) <= 0) {
+      return handleEnemyDefeated({ ...st, monsterHp: ZERO, combatAlive: false }, now);
+    }
+    if (!raw || !isFinite(raw.m) || raw.m <= 0) return st;
+
     let dmg = raw;
     if (st.bossActive) dmg = mul(dmg, fromNumber(derive(st, now).bossDmgMult));
-    const hp = sub(st.monsterHp, dmg);
+
+    const remaining = sub(st.monsterHp, dmg);
     const stats = { ...st.stats, totalDamage: add(st.stats.totalDamage, dmg) };
-    if (cmp(hp, ZERO) <= 0) return killMonster({ ...st, monsterHp: ZERO, stats }, now);
-    return { ...st, monsterHp: hp, stats };
-  }, [killMonster]);
+
+    if (cmp(remaining, ZERO) <= 0) {
+      return handleEnemyDefeated({ ...st, monsterHp: ZERO, combatAlive: false, stats }, now);
+    }
+    return { ...st, monsterHp: clampNonNeg(remaining), stats, combatAlive: true };
+  }, [handleEnemyDefeated]);
 
   const clickMonster = useCallback((x = 50, y = 40) => {
     setS((prev) => {
@@ -145,7 +203,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const hp = monsterHP(1, false);
       const next = apply({
         ...prev, gold: startingGold(plvl(prev, "pStart")), zone: 1, killsInZone: 0, monsterHp: hp, monsterMax: hp,
-        bossActive: false, bossUntil: 0, heroLevels: HEROES.map(() => 0),
+        bossActive: false, bossUntil: 0, combatAlive: true, heroLevels: HEROES.map(() => 0),
         upgradeLevels: Object.fromEntries(UPGRADES.map((u) => [u.id, 0])), skillsCd: {}, boosts: [],
         essence: prev.essence + gain, ascensions: prev.ascensions + 1, questProgress: {}, questsClaimed: [],
         stats: { ...prev.stats, runGold: fromNumber(0), runBosses: 0 },
@@ -215,8 +273,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
           const now = Date.now();
           const der = derive(prev, now);
           let next = { ...prev, lastSeen: now, stats: { ...prev.stats, playTime: prev.stats.playTime + step }, boosts: prev.boosts.filter((b) => b.until > now) };
-          if (next.bossActive && next.bossUntil && now > next.bossUntil && cmp(next.monsterHp, ZERO) > 0) next = { ...next, ...spawn(next.zone, next.killsInZone, true) };
-          else if (cmp(der.dps, ZERO) > 0) next = dealDamage(next, mul(der.dps, fromNumber(step)), now);
+          if (next.bossActive && next.bossUntil && now > next.bossUntil && cmp(next.monsterHp, ZERO) > 0) {
+            next = { ...next, ...spawn(next.zone, next.killsInZone, { failedBoss: true, farm: next.gameMode === "farm" }) };
+          } else if (cmp(der.dps, ZERO) > 0) {
+            next = dealDamage(next, mul(der.dps, fromNumber(step)), now);
+          }
           return next;
         });
       }
@@ -248,10 +309,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const resetSave = useCallback(() => { const fresh = defaultState(); persist(fresh); setS(fresh); setConfirmReset(false); }, []);
 
+  const setGameMode = useCallback((m: "progression" | "farm") => {
+    setS((prev) => ({ ...prev, gameMode: m }));
+  }, []);
+
+  const selectZone = useCallback((z: number) => {
+    setS((prev) => {
+      if (z < 1 || z > prev.stats.highestZone) return prev;
+      const hp = monsterHP(z, false);
+      return {
+        ...prev,
+        zone: z,
+        killsInZone: 0,
+        monsterHp: hp,
+        monsterMax: hp,
+        bossActive: false,
+        bossUntil: 0,
+        combatAlive: true,
+      };
+    });
+  }, []);
+
   const value: Ctx = {
     s, d, tab, setTab, floats, toasts, offline, collectOffline, dailyOpen, claimDaily, dismissDaily: () => setDailyOpen(false),
     clickMonster, buyHero, buyUpgrade, useSkill, buyPrestige, ascend, claimQuest, fmt, patchSettings, exportSave, importSave, resetSave,
-    saveNow: () => persist(sRef.current), confirmAscend, setConfirmAscend, confirmReset, setConfirmReset,
+    saveNow: () => persist(sRef.current), confirmAscend, setConfirmAscend, confirmReset, setConfirmReset, setGameMode, selectZone,
   };
   return <GameCtx.Provider value={value}>{children}</GameCtx.Provider>;
 }
