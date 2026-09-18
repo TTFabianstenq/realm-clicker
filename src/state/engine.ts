@@ -6,7 +6,7 @@ import {
 } from "../game/content";
 import { defaultState, reviveDec } from "../game/createState";
 import { heroDps } from "../game/formulas";
-import { add, cmp, Dec, fromNumber, mul } from "../game/numbers";
+import { add, clampNonNeg, cmp, Dec, fromNumber, mul } from "../game/numbers";
 import type { GameState } from "../game/types";
 
 export type Derived = {
@@ -35,9 +35,9 @@ export function loadState(): GameState {
       version: SAVE_VERSION,
       gold: reviveDec(p.gold),
       zone: Math.max(1, Math.floor(Number(p.zone) || 1)),
-      killsInZone: Math.max(0, Math.floor(Number(p.killsInZone) || 0)),
-      monsterHp: reviveDec(p.monsterHp),
-      monsterMax: reviveDec(p.monsterMax),
+      killsInZone: Math.min(10, Math.max(0, Math.floor(Number(p.killsInZone) || 0))),
+      monsterHp: clampNonNeg(reviveDec(p.monsterHp)),
+      monsterMax: clampNonNeg(reviveDec(p.monsterMax)),
       bossActive: Boolean(p.bossActive),
       bossUntil: Number(p.bossUntil) || 0,
       heroLevels,
@@ -63,6 +63,8 @@ export function loadState(): GameState {
       lastDaily: typeof p.lastDaily === "string" ? p.lastDaily : "",
       introSeen: Boolean(p.introSeen),
       createdAt: Number(p.createdAt) || Date.now(),
+      gameMode: p.gameMode === "farm" ? "farm" : "progression",
+      combatAlive: true,
     };
   } catch {
     return defaultState();
