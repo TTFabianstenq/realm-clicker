@@ -1,46 +1,58 @@
-/** Layered CSS/SVG zone environments */
+/** Layered SVG zone environments, one per zone theme. */
+import { memo } from "react";
+import { BOSS_EVERY, ZONE_THEMES } from "../../game/content";
 
-type Props = { zone: number; boss: boolean };
+type Props = { zone: number; boss: boolean; primal: boolean };
 
-const THEMES = [
-  { sky: "#1a2f1a", mid: "#2d4a2d", ground: "#1e3a1e", accent: "#4a7c4a", name: "forest" },
-  { sky: "#2a2418", mid: "#4a3c28", ground: "#3a3020", accent: "#c4a574", name: "ruins" },
-  { sky: "#0e1e2e", mid: "#1a3a5a", ground: "#0a2030", accent: "#5ec8ff", name: "crystal" },
-  { sky: "#2a1008", mid: "#5a2810", ground: "#3a1808", accent: "#ff6b35", name: "volcano" },
-  { sky: "#0e1e2e", mid: "#1a3048", ground: "#e8f0f8", accent: "#a8d4f0", name: "frost" },
-  { sky: "#12081a", mid: "#2a1040", ground: "#180c28", accent: "#8b5cff", name: "shadow" },
-  { sky: "#1a1830", mid: "#3a3050", ground: "#2a2040", accent: "#f5d76e", name: "celestial" },
-  { sky: "#0a0610", mid: "#1a0e28", ground: "#0c0818", accent: "#6b3fa0", name: "void" },
+const SKY = [
+  ["#13261a", "#2d4a2d", "#173018"], // woods
+  ["#2a2418", "#4a3c28", "#2c2416"], // ruins
+  ["#0b1a2b", "#183a5a", "#0a2030"], // crystal
+  ["#2a0e06", "#5a2810", "#2c1206"], // ember
+  ["#132235", "#2a4560", "#c9dbe8"], // frost
+  ["#10081a", "#2a1040", "#150a22"], // marsh
+  ["#1a1830", "#3d3260", "#2a2040"], // celestial
+  ["#07040d", "#1a0e28", "#0a0614"], // void
+  ["#0b1022", "#1e2b55", "#10162c"], // storm
+  ["#1c0a08", "#3a1410", "#160806"], // ashen
+  ["#0e0a24", "#2c2050", "#120c28"], // starfall
+  ["#211a08", "#4a3a12", "#1e1606"], // gilded
 ];
 
-export function ZoneBackground({ zone, boss }: Props) {
-  const t = THEMES[(zone - 1) % THEMES.length];
-  const dim = boss ? 0.55 : 1;
-
+export const ZoneBackground = memo(function ZoneBackground({ zone, boss, primal }: Props) {
+  const ti = Math.floor((zone - 1) / BOSS_EVERY) % ZONE_THEMES.length;
+  const [sky, mid, ground] = SKY[ti];
+  const hue = ZONE_THEMES[ti].hue;
+  const accent = `hsl(${hue} 70% 60%)`;
+  const seed = ti * 37;
+  const peaks = Array.from({ length: 9 }, (_, i) => 60 + ((seed + i * 53) % 70));
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-2xl" style={{ opacity: dim }}>
-      <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.sky} 0%, ${t.mid} 55%, ${t.ground} 100%)` }} />
-      <svg className="absolute bottom-0 left-0 w-full h-2/3 opacity-40" viewBox="0 0 400 200" preserveAspectRatio="none">
-        <path d="M0 200 L0 120 L40 90 L80 110 L120 60 L160 100 L200 50 L240 95 L280 70 L320 110 L360 80 L400 120 L400 200 Z" fill={t.accent} opacity="0.35" />
-        <path d="M0 200 L0 150 L50 130 L100 155 L150 120 L200 145 L250 115 L300 150 L350 125 L400 155 L400 200 Z" fill={t.ground} opacity="0.7" />
+    <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${sky} 0%, ${mid} 60%, ${ground} 100%)` }} />
+      <div className="absolute inset-0 opacity-60" style={{ background: `radial-gradient(ellipse at 50% 20%, hsl(${hue} 80% 60% / 0.25), transparent 60%)` }} />
+      <svg className="absolute bottom-0 left-0 w-full h-3/4" viewBox="0 0 400 200" preserveAspectRatio="none" aria-hidden>
+        <path d={`M0 200 L0 ${peaks[0]} ${peaks.map((p, i) => `L${(i + 1) * 45} ${p}`).join(" ")} L400 200 Z`} fill={accent} opacity="0.13" />
+        <path d={`M0 200 L0 ${peaks[3] + 40} ${peaks.map((p, i) => `L${i * 50 + 25} ${200 - (200 - p) * 0.45}`).join(" ")} L400 200 Z`} fill={ground} opacity="0.85" />
+        <rect x="0" y="178" width="400" height="22" fill={ground} />
       </svg>
-      <div className="zone-particles absolute inset-0 pointer-events-none">
-        {[12, 28, 45, 62, 78, 90].map((x, i) => (
+      <div className="absolute inset-0 pointer-events-none">
+        {[8, 22, 37, 51, 66, 79, 92].map((x, i) => (
           <span
             key={i}
-            className="absolute w-1 h-1 rounded-full opacity-40"
+            className="zone-mote absolute rounded-full"
             style={{
               left: `${x}%`,
-              top: `${20 + (i * 11) % 50}%`,
-              background: t.accent,
-              animation: `floatParticle ${4 + (i % 3)}s ease-in-out infinite`,
-              animationDelay: `${i * 0.4}s`,
+              top: `${15 + ((i * 17) % 60)}%`,
+              width: 3 + (i % 3),
+              height: 3 + (i % 3),
+              background: accent,
+              animationDuration: `${5 + (i % 4)}s`,
+              animationDelay: `${i * 0.6}s`,
             }}
           />
         ))}
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-24 opacity-50" style={{ background: `linear-gradient(transparent, ${t.ground})` }} />
-      {boss && <div className="absolute inset-0 bg-red-950/30 pointer-events-none" />}
+      {boss && <div className={`absolute inset-0 pointer-events-none ${primal ? "bg-violet-950/40" : "bg-red-950/35"} boss-vignette`} />}
     </div>
   );
-}
+});

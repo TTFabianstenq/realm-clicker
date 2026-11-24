@@ -19,7 +19,7 @@ export function toNumber(d: Dec): number {
 }
 
 export function normalize(d: Dec): Dec {
-  if (!isFinite(d.m) || d.m === 0) return { m: 0, e: 0 };
+  if (!isFinite(d.m) || !isFinite(d.e) || d.m === 0) return { m: 0, e: 0 };
   let { m, e } = d;
   const sign = m < 0 ? -1 : 1;
   m = Math.abs(m);
@@ -27,6 +27,11 @@ export function normalize(d: Dec): Dec {
     const shift = Math.floor(Math.log10(m));
     m = m / 10 ** shift;
     e += shift;
+    // guard against float drift like 9.9999999 -> 10
+    if (m >= 10) {
+      m /= 10;
+      e += 1;
+    }
   }
   return { m: sign * m, e };
 }
@@ -42,9 +47,7 @@ export function add(a: Dec, b: Dec): Dec {
   if (b.m === 0) return a;
   if (a.e > b.e + 15) return a;
   if (b.e > a.e + 15) return b;
-  if (a.e >= b.e) {
-    return normalize({ m: a.m + b.m * 10 ** (b.e - a.e), e: a.e });
-  }
+  if (a.e >= b.e) return normalize({ m: a.m + b.m * 10 ** (b.e - a.e), e: a.e });
   return normalize({ m: b.m + a.m * 10 ** (a.e - b.e), e: b.e });
 }
 
@@ -57,8 +60,12 @@ export function mul(a: Dec, b: Dec): Dec {
   return normalize({ m: a.m * b.m, e: a.e + b.e });
 }
 
+export function mulN(a: Dec, n: number): Dec {
+  return mul(a, fromNumber(n));
+}
+
 export function div(a: Dec, b: Dec): Dec {
-  if (b.m === 0) return { m: a.m < 0 ? -Infinity : Infinity, e: 0 };
+  if (b.m === 0) return { m: a.m < 0 ? -9.99 : 9.99, e: 9e15 };
   if (a.m === 0) return ZERO;
   return normalize({ m: a.m / b.m, e: a.e - b.e });
 }
@@ -72,6 +79,18 @@ export function pow(base: number, exp: number): Dec {
   return normalize({ m, e });
 }
 
+/** log10 of a positive Dec (returns -Infinity for zero). */
+export function log10(d: Dec): number {
+  if (d.m <= 0) return -Infinity;
+  return d.e + Math.log10(d.m);
+}
+
+/** 10^x as Dec. */
+export function exp10(x: number): Dec {
+  const e = Math.floor(x);
+  return normalize({ m: 10 ** (x - e), e });
+}
+
 /** Correct comparison including negatives. */
 export function cmp(a: Dec, b: Dec): number {
   const an = normalize(a);
@@ -79,11 +98,10 @@ export function cmp(a: Dec, b: Dec): number {
   if (an.m === 0 && bn.m === 0) return 0;
   if (an.m < 0 && bn.m >= 0) return -1;
   if (an.m >= 0 && bn.m < 0) return 1;
+  if (an.m === 0) return bn.m > 0 ? -1 : 1;
+  if (bn.m === 0) return an.m > 0 ? 1 : -1;
   const sameSign = an.m >= 0 ? 1 : -1;
-  if (an.e !== bn.e) {
-    const expCmp = an.e > bn.e ? 1 : -1;
-    return sameSign * expCmp;
-  }
+  if (an.e !== bn.e) return sameSign * (an.e > bn.e ? 1 : -1);
   if (an.m === bn.m) return 0;
   return an.m > bn.m ? 1 : -1;
 }
@@ -100,6 +118,15 @@ export function minDec(a: Dec, b: Dec): Dec {
   return cmp(a, b) <= 0 ? a : b;
 }
 
+/** Ratio a/b as a plain number (clamped to finite). */
+export function ratio(a: Dec, b: Dec): number {
+  if (b.m === 0) return a.m === 0 ? 0 : Infinity;
+  const r = div(a, b);
+  if (r.e > 300) return Infinity;
+  if (r.e < -300) return 0;
+  return toNumber(r);
+}
+
 export function clone(d: Dec): Dec {
   return { m: d.m, e: d.e };
 }
@@ -109,37 +136,50 @@ const SUFFIXES = [
   "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
 ];
 
-export type NumberFormatMode = "short" | "scientific" | "full";
+/** After the named suffixes, use aa, ab, ac … zz (each step = ×1000). */
+function suffixFor(group: number): string | null {
+  if (group < SUFFIXES.length) return SUFFIXES[group];
+  const i = group - SUFFIXES.length;
+  if (i >= 26 * 26) return null;
+  return String.fromCharCode(97 + Math.floor(i / 26)) + String.fromCharCode(97 + (i % 26));
+}
+
+export type NumberFormatMode = "short" | "scientific" | "engineering" | "full";
 
 export function formatDec(d: Dec, mode: NumberFormatMode = "short"): string {
   const n = normalize(d);
-  if (n.m === 0 || n.m < 0) return "0";
-  const m = Math.abs(n.m);
+  if (n.m === 0) return "0";
+  if (n.m < 0) return "-" + formatDec({ m: -n.m, e: n.e }, mode);
+  const m = n.m;
   const e = n.e;
 
-  if (mode === "scientific") {
-    return `${m.toFixed(2)}e${e}`;
-  }
-
-  if (mode === "full" && e < 15) {
-    const val = m * 10 ** e;
-    return Math.floor(val).toLocaleString("en-US");
-  }
-
   if (e < 3) {
-    const val = m * 10 ** e;
+    const val = m * 10 ** e + 1e-9;
     if (val < 1000) {
-      return val < 10 && val % 1 !== 0 ? val.toFixed(1) : Math.floor(val).toString();
+      if (val < 10 && val % 1 > 0.05) return (Math.floor(val * 10) / 10).toFixed(1);
+      return Math.floor(val).toString();
     }
   }
 
-  const group = Math.floor(e / 3);
-  if (group < SUFFIXES.length) {
-    const rem = e % 3;
-    const shown = m * 10 ** rem;
-    const digits = shown >= 100 ? 0 : shown >= 10 ? 1 : 2;
-    return `${shown.toFixed(digits)}${SUFFIXES[group]}`;
+  if (mode === "scientific") return `${m.toFixed(2)}e${e}`;
+  if (mode === "engineering") {
+    const g = Math.floor(e / 3) * 3;
+    return `${(m * 10 ** (e - g)).toFixed(2)}e${g}`;
+  }
+  if (mode === "full" && e < 15) {
+    return Math.floor(m * 10 ** e).toLocaleString("en-US");
   }
 
+  const group = Math.floor(e / 3);
+  const suf = suffixFor(group);
+  if (suf !== null) {
+    const shown = m * 10 ** (e % 3);
+    const digits = shown >= 100 ? 0 : shown >= 10 ? 1 : 2;
+    return `${shown.toFixed(digits)}${suf}`;
+  }
   return `${m.toFixed(2)}e${e}`;
+}
+
+export function formatInt(n: number): string {
+  return Math.floor(n).toLocaleString("en-US");
 }

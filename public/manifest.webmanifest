@@ -1,0 +1,10 @@
+{
+  "name": "Realm Clicker",
+  "short_name": "Realm Clicker",
+  "description": "An original dark-fantasy idle clicker RPG.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090b12",
+  "theme_color": "#11131f",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

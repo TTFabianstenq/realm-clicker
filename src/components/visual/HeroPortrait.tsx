@@ -1,45 +1,46 @@
-/** Original stylized hero portraits via SVG */
+/** Original stylized hero portraits drawn in SVG, varied per hero. */
+import { HEROES } from "../../game/content";
 
-type Props = { index: number; size?: number; glow?: boolean };
+type Props = { index: number; size?: number; gilds?: number; dim?: boolean };
 
-const HERO_COLORS = [
-  { skin: "#e8c4a0", hair: "#5c3a1e", cloth: "#4a7c3a", accent: "#c4a574" },
-  { skin: "#f0d4b8", hair: "#6b4a9a", cloth: "#5a3a8a", accent: "#c9a0ff" },
-  { skin: "#d4a880", hair: "#2a2a2a", cloth: "#4a5568", accent: "#94a3b8" },
-  { skin: "#c8b0a0", hair: "#1a1020", cloth: "#2d1f3d", accent: "#8b5cff" },
-  { skin: "#f0d8c0", hair: "#e8e0f0", cloth: "#2a4a6a", accent: "#5ec8ff" },
-  { skin: "#c4a890", hair: "#5a5040", cloth: "#5a5048", accent: "#a09070" },
-  { skin: "#b0a0c0", hair: "#1a0a28", cloth: "#2a1040", accent: "#a855f7" },
-  { skin: "#e0b890", hair: "#8b2020", cloth: "#5a2010", accent: "#ff6b35" },
-  { skin: "#d8c0a0", hair: "#3a6a3a", cloth: "#2a5a2a", accent: "#4ade80" },
-  { skin: "#e0d0b0", hair: "#606870", cloth: "#4a5560", accent: "#f5c542" },
-  { skin: "#f0e0d0", hair: "#e8e8f0", cloth: "#3a3a5a", accent: "#c0c8ff" },
-  { skin: "#d0a080", hair: "#3a1810", cloth: "#6a2010", accent: "#ff4500" },
-];
+const SKINS = ["#f0d4b8", "#e0b890", "#c8956c", "#8d5a3b", "#f3dcc8", "#b88563", "#d9b08c"];
 
-export function HeroPortrait({ index, size = 48, glow }: Props) {
-  const c = HERO_COLORS[index % HERO_COLORS.length];
-  const id = `hp-${index}`;
-
+export function HeroPortrait({ index, size = 48, gilds = 0, dim }: Props) {
+  const h = HEROES[index % HEROES.length];
+  const hue = h.hue;
+  const skin = SKINS[index % SKINS.length];
+  const hair = `hsl(${(hue + 180) % 360} 35% ${20 + (index % 3) * 15}%)`;
+  const cloth = `hsl(${hue} 55% 32%)`;
+  const accent = `hsl(${hue} 85% 65%)`;
+  const style = index % 4; // hair / helmet style
   return (
     <div
-      className={`relative rounded-xl overflow-hidden border-2 border-amber-700/50 bg-gradient-to-b from-slate-800 to-slate-950 ${glow ? "hero-glow" : ""}`}
-      style={{ width: size, height: size }}
+      className={`relative shrink-0 rounded-xl overflow-hidden border-2 ${gilds > 0 ? "border-amber-300 gild-glow" : "border-white/10"} ${dim ? "grayscale opacity-60" : ""}`}
+      style={{ width: size, height: size, background: `radial-gradient(circle at 50% 30%, hsl(${hue} 50% 28%), hsl(${hue} 40% 10%))` }}
     >
       <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden>
-        <defs>
-          <radialGradient id={`${id}-face`} cx="50%" cy="40%">
-            <stop offset="0%" stopColor={c.skin} />
-            <stop offset="100%" stopColor={c.skin} stopOpacity="0.85" />
-          </radialGradient>
-        </defs>
-        <ellipse cx="32" cy="58" rx="28" ry="14" fill={c.cloth} />
-        <circle cx="32" cy="28" r="16" fill={`url(#${id}-face)`} />
-        <path d="M16 28 Q18 8 32 10 Q46 8 48 28 Q40 18 32 16 Q24 18 16 28" fill={c.hair} />
-        <circle cx="26" cy="28" r="2.2" fill="#1a1a22" />
-        <circle cx="38" cy="28" r="2.2" fill="#1a1a22" />
-        <circle cx="32" cy="48" r="4" fill={c.accent} opacity="0.9" />
+        <ellipse cx="32" cy="62" rx="26" ry="16" fill={cloth} />
+        <path d="M14 62 Q32 44 50 62" fill={accent} opacity="0.35" />
+        <rect x="27" y="38" width="10" height="8" fill={skin} />
+        <circle cx="32" cy="28" r="14" fill={skin} />
+        {style === 0 && <path d="M17 28 Q18 10 32 11 Q46 10 47 28 Q42 18 32 17 Q22 18 17 28" fill={hair} />}
+        {style === 1 && <path d="M16 30 Q16 8 32 9 Q48 8 48 30 L46 44 Q44 26 32 18 Q20 26 18 44 Z" fill={hair} />}
+        {style === 2 && (
+          <g>
+            <path d="M16 27 Q16 10 32 10 Q48 10 48 27 L48 31 L16 31 Z" fill={`hsl(${hue} 15% 55%)`} />
+            <rect x="30" y="10" width="4" height="22" fill={`hsl(${hue} 15% 40%)`} />
+          </g>
+        )}
+        {style === 3 && <path d="M18 24 Q24 6 32 14 Q40 6 46 24 Q40 16 32 20 Q24 16 18 24" fill={hair} />}
+        <circle cx="27" cy="29" r="1.8" fill="#14121a" />
+        <circle cx="37" cy="29" r="1.8" fill="#14121a" />
+        <path d="M28 35 Q32 37 36 35" stroke="#5a2a20" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        <circle cx="32" cy="52" r="3.5" fill={accent} />
       </svg>
+      <span className="absolute bottom-0 right-0.5 text-[10px] leading-none drop-shadow" aria-hidden>{h.glyph}</span>
+      {gilds > 0 && (
+        <span className="absolute top-0 left-0 text-[9px] font-bold px-1 rounded-br-md bg-amber-400 text-amber-950 leading-tight">✦{gilds}</span>
+      )}
     </div>
   );
 }

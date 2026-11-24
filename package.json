@@ -1,12 +1,15 @@
 {
   "name": "realm-clicker",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/test.ts",
+    "sim": "tsx scripts/sim.ts"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -20,6 +23,8 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.10.0"
   }
 }
