@@ -17,7 +17,7 @@ export function defaultStats(now = Date.now()): Stats {
 }
 
 export function defaultSettings(): Settings {
-  return { sound: true, volume: 0.5, music: false, reducedMotion: false, numberFormat: "short", showFloats: true, buyAmount: 1 };
+  return { sound: true, volume: 0.5, music: false, reducedMotion: false, numberFormat: "short", showFloats: true, buyAmount: 1, graphics3d: true };
 }
 
 export function defaultState(): GameState {
@@ -109,6 +109,7 @@ function sanitizeSettings(raw: unknown): Settings {
     numberFormat: nf === "scientific" || nf === "engineering" || nf === "full" ? nf : "short",
     showFloats: typeof r.showFloats === "boolean" ? r.showFloats : true,
     buyAmount: [1, 10, 25, 100, -1].includes(Number(r.buyAmount)) ? Number(r.buyAmount) : 1,
+    graphics3d: typeof r.graphics3d === "boolean" ? r.graphics3d : true,
   };
 }
 

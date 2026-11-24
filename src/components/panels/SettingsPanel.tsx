@@ -23,6 +23,7 @@ export function SettingsPanel() {
         <span className="flex justify-between"><span>Volume</span><span className="text-white/50 tabular-nums">{Math.round(s.settings.volume * 100)}%</span></span>
         <input type="range" min={0} max={1} step={0.05} value={s.settings.volume} onChange={(e) => g.act.patchSettings({ volume: Number(e.target.value) })} className="w-full mt-1 accent-amber-400" />
       </label>
+      <Toggle label="3D monsters (turn off on slow devices)" on={s.settings.graphics3d} onChange={(v) => g.act.patchSettings({ graphics3d: v })} />
       <Toggle label="Floating damage numbers" on={s.settings.showFloats} onChange={(v) => g.act.patchSettings({ showFloats: v })} />
       <Toggle label="Reduced motion" on={s.settings.reducedMotion} onChange={(v) => g.act.patchSettings({ reducedMotion: v })} />
       <label className="card block text-sm">

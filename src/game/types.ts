@@ -62,6 +62,7 @@ export interface Settings {
   numberFormat: NumberFormatMode;
   showFloats: boolean;
   buyAmount: number; // 1, 10, 25, 100, -1 = max
+  graphics3d: boolean;
 }
 
 export interface GameState {

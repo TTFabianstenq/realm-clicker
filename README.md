@@ -12,6 +12,7 @@ An original dark-fantasy idle clicker RPG in the tradition of the classic hero-h
 - **Primal bosses** (zone 25+) give **Essence**. **Ascend** to reset with it: every unspent Essence is +10% DPS, or spend it on 14 **Ancients** (familiars that auto-attack, idle bonuses, boss timers, chest luck, and more).
 - **Gilds** — every 10 new record zones from zone 30 gilds a random hero (+50% DPS). Move gilds to your best hero for Essence.
 - **Contracts, daily streaks, 50+ badges** (each +3% DPS), offline progress, stats.
+- **Real-time 3D monsters** — 11 species, treasure chests, crowned bosses and hero busts rendered live with a custom raymarching shader (soft shadows, ambient occlusion, rim light, glowing eyes, idle animation, hit squash). No 3D engine or model files; falls back to 2D art if WebGL is unavailable, and can be turned off in Settings.
 - Synthesized sound effects, particles, screen shake, reduced-motion mode, four number formats, keyboard shortcuts, responsive layout, installable as a PWA.
 
 ## Tech
@@ -22,6 +23,7 @@ React 18 · TypeScript · Vite · Tailwind CSS. The whole game engine (`src/game
 src/game/       content, formulas, engine, save parsing (no React)
 src/state/      React provider: game loop, autosave, events → sound/FX
 src/components/ HUD, zone bar, arena, skill bar, panels, SVG art
+src/render/     WebGL renderer + SDF shader for the 3D monsters and hero portraits
 src/audio/      Web Audio sound effects (no asset files)
 scripts/        engine tests and a bot that simulates hours of play
 ```

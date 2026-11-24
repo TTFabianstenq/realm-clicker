@@ -1,5 +1,7 @@
 /** Original stylized hero portraits drawn in SVG, varied per hero. */
 import { HEROES } from "../../game/content";
+import { useEffect, useState } from "react";
+import { heroPortrait, subscribePortraits } from "../../render/portraits";
 
 type Props = { index: number; size?: number; gilds?: number; dim?: boolean };
 
@@ -13,11 +15,17 @@ export function HeroPortrait({ index, size = 48, gilds = 0, dim }: Props) {
   const cloth = `hsl(${hue} 55% 32%)`;
   const accent = `hsl(${hue} 85% 65%)`;
   const style = index % 4; // hair / helmet style
+  const [, bump] = useState(0);
+  const img = heroPortrait(index % HEROES.length);
+  useEffect(() => (img ? undefined : subscribePortraits(() => bump((n) => n + 1))), [img]);
   return (
     <div
       className={`relative shrink-0 rounded-xl overflow-hidden border-2 ${gilds > 0 ? "border-amber-300 gild-glow" : "border-white/10"} ${dim ? "grayscale opacity-60" : ""}`}
       style={{ width: size, height: size, background: `radial-gradient(circle at 50% 30%, hsl(${hue} 50% 28%), hsl(${hue} 40% 10%))` }}
     >
+      {img ? (
+        <img src={img} width={size} height={size} alt="" draggable={false} className="block w-full h-full object-cover" />
+      ) : (
       <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden>
         <ellipse cx="32" cy="62" rx="26" ry="16" fill={cloth} />
         <path d="M14 62 Q32 44 50 62" fill={accent} opacity="0.35" />
@@ -37,6 +45,7 @@ export function HeroPortrait({ index, size = 48, gilds = 0, dim }: Props) {
         <path d="M28 35 Q32 37 36 35" stroke="#5a2a20" strokeWidth="1.2" fill="none" strokeLinecap="round" />
         <circle cx="32" cy="52" r="3.5" fill={accent} />
       </svg>
+      )}
       <span className="absolute bottom-0 right-0.5 text-[10px] leading-none drop-shadow" aria-hidden>{h.glyph}</span>
       {gilds > 0 && (
         <span className="absolute top-0 left-0 text-[9px] font-bold px-1 rounded-br-md bg-amber-400 text-amber-950 leading-tight">✦{gilds}</span>

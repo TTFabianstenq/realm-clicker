@@ -5,6 +5,7 @@ import { comboBonus, hlvl } from "../game/logic";
 import { formatDec, ratio } from "../game/numbers";
 import type { GameEvent } from "../game/types";
 import { useGame } from "../state/GameContext";
+import { Monster3D } from "./visual/Monster3D";
 import { MonsterArt } from "./visual/MonsterArt";
 import { ZoneBackground } from "./visual/ZoneBackground";
 import { HeroPortrait } from "./visual/HeroPortrait";
@@ -167,16 +168,20 @@ export function Arena() {
           onPointerDown={onPointer}
           onContextMenu={(e) => e.preventDefault()}
           onKeyDown={(e) => { if (e.key === "Enter") g.act.click(50, 45); }}
-          className="monster-btn relative flex-1 w-full max-w-[380px] min-h-[190px] touch-manipulation select-none"
+          className="monster-btn relative flex-1 w-full max-w-[560px] min-h-[220px] touch-manipulation select-none"
           aria-label={`Attack ${name}`}
         >
-          <div key={m.seed + ":" + s.zone} className="absolute inset-0 flex items-end justify-center pb-2 monster-spawn">
-            <div key={hitKey} className={`h-full w-full ${boss ? "max-w-[330px]" : "max-w-[290px]"} ${s.settings.reducedMotion ? "" : "monster-hit"}`} style={{ maxHeight: boss ? 330 : 290 }}>
-              <div className={`h-full w-full ${s.settings.reducedMotion ? "" : "monster-breathe"}`}>
-                <MonsterArt zone={s.zone} seed={m.seed} kind={m.kind} primal={m.primal} />
+          {s.settings.graphics3d ? (
+            <Monster3D zone={s.zone} seed={m.seed} kind={m.kind} primal={m.primal} hitKey={hitKey} reducedMotion={s.settings.reducedMotion} />
+          ) : (
+            <div key={m.seed + ":" + s.zone} className="absolute inset-0 flex items-end justify-center pb-2 monster-spawn">
+              <div key={hitKey} className={`h-full w-full max-w-[300px] ${s.settings.reducedMotion ? "" : "monster-hit"}`}>
+                <div className={`h-full w-full ${s.settings.reducedMotion ? "" : "monster-breathe"}`}>
+                  <MonsterArt zone={s.zone} seed={m.seed} kind={m.kind} primal={m.primal} />
+                </div>
               </div>
             </div>
-          </div>
+          )}
           {floats.map((f) => (
             <span key={f.id} className={`float-num float-${f.kind}`} style={{ left: `${f.x}%`, top: `${f.y}%` }}>
               {f.text}
