@@ -11,7 +11,7 @@ export function freshMonster(): Monster {
 export function defaultStats(now = Date.now()): Stats {
   return {
     clicks: 0, autoClicks: 0, totalDamage: ZERO, totalGold: ZERO, monsters: 0, bosses: 0, chests: 0, primals: 0,
-    highestZone: 1, playTime: 0, heroLevelsBought: 0, skillsUsed: 0, bestCombo: 0, totalEssence: 0,
+    highestZone: 1, playTime: 0, heroLevelsBought: 0, skillsUsed: 0, bestCombo: 0, totalEssence: 0, tamper: 0,
     runGold: ZERO, runStart: now,
   };
 }
@@ -93,7 +93,7 @@ function sanitizeStats(raw: unknown, base: Stats): Stats {
     monsters: int(r.monsters), bosses: int(r.bosses), chests: int(r.chests), primals: int(r.primals),
     highestZone: int(r.highestZone, 1), playTime: Math.max(0, num(r.playTime)),
     heroLevelsBought: int(r.heroLevelsBought ?? r.heroUpgrades), skillsUsed: int(r.skillsUsed), bestCombo: int(r.bestCombo),
-    totalEssence: int(r.totalEssence), runGold: reviveDec(r.runGold), runStart: num(r.runStart, base.runStart),
+    totalEssence: int(r.totalEssence), tamper: int(r.tamper), runGold: reviveDec(r.runGold), runStart: num(r.runStart, base.runStart),
   };
 }
 
@@ -216,7 +216,7 @@ function migrateV1(p: Record<string, unknown>): GameState {
     essence: int(p.essence),
     ascensions: int(p.ascensions),
     achievements: [],
-    stats: { ...stats, highestZone: Math.max(stats.highestZone, zone) },
+    stats: { ...stats, highestZone: Math.max(stats.highestZone, zone), totalEssence: Math.max(stats.totalEssence, int(p.essence)) },
     settings,
     lastSeen: num(p.lastSeen, Date.now()),
     lastDaily: typeof p.lastDaily === "string" ? p.lastDaily : "",

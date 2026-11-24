@@ -3,6 +3,7 @@ import { SKILLS } from "../game/content";
 import { ascendGain, dailyReward, dayKey, questProgress } from "../game/logic";
 import type { TabId } from "../game/types";
 import { useGame } from "../state/GameContext";
+import { isTrustedEvent } from "../security/secure";
 import { Arena } from "./Arena";
 import { Hud } from "./Hud";
 import { SkillBar } from "./SkillBar";
@@ -49,6 +50,7 @@ export function AppShell() {
   // keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!isTrustedEvent(e)) return;
       const t = e.target as HTMLElement;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -188,6 +190,14 @@ export function AppShell() {
             <button onClick={g.act.ascend} className="btn-magic flex-1 py-3 text-sm">🔥 Ascend</button>
             <button onClick={() => g.setModal(null)} className="flex-1 rounded-lg py-3 bg-white/10">Cancel</button>
           </div>
+        </Modal>
+      )}
+
+      {g.notice && s.introSeen && (
+        <Modal onClose={g.dismissNotice}>
+          <h2 className="font-display text-xl text-red-300">🛡 Save integrity check</h2>
+          <p className="text-sm text-white/70">{g.notice}</p>
+          <button onClick={g.dismissNotice} className="btn-gold w-full py-2.5">OK</button>
         </Modal>
       )}
 

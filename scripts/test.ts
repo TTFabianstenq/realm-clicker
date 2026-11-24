@@ -4,6 +4,8 @@ import * as L from "../src/game/logic";
 import { HEROES } from "../src/game/content";
 import { heroCost, heroCostBulk, heroMaxAffordable, monsterHP } from "../src/game/formulas";
 import { add, cmp, formatDec, fromNumber, gte, mulN, ratio } from "../src/game/numbers";
+import { decodeSave, encodeSave, fromExportString, LEGACY_CUTOFF, toExportString } from "../src/game/saveCodec";
+import { deepFreeze, isTrustedEvent, looksRobotic } from "../src/security/secure";
 
 let fails = 0;
 const ok = (cond: unknown, msg: string) => { if (!cond) { fails++; console.error("✗", msg); } else console.log("✓", msg); };
@@ -94,6 +96,51 @@ gd = { ...gd, stats: { ...gd.stats, highestZone: 29 }, monster: { ...gd.monster,
 const gr = L.click({ ...gd, cleared: 28 }, T0, rng);
 ok(gr.s.zone === 30 && (gr.s.gilds.rowan || 0) === 1, "reaching zone 30 grants a gild");
 void HEROES;
+
+// anti-cheat: engine never mutates frozen state
+{
+  let f = deepFreeze(L.fillQuests(defaultState(), rng));
+  let tnow = T0;
+  let threw = false;
+  try {
+    for (let i = 0; i < 300; i++) {
+      tnow += 100;
+      f = deepFreeze(L.click(f, tnow, rng).s);
+      f = deepFreeze(L.tick(f, 0.1, tnow, rng).s);
+      if (i % 20 === 0) f = deepFreeze(L.buyHero({ ...f, gold: fromNumber(1e9) }, i % 3, -1).s);
+    }
+    f = deepFreeze(L.useSkill({ ...f, stats: { ...f.stats, highestZone: 100 } }, "storm", tnow).s);
+    for (let i = 0; i < 50; i++) { tnow += 100; f = deepFreeze(L.tick(f, 0.1, tnow, rng).s); }
+    f = deepFreeze(L.claimDaily(f, tnow).s);
+  } catch (e) { threw = true; console.error(e); }
+  ok(!threw, "engine works on deep-frozen state (no in-place mutation)");
+  const frozen = deepFreeze(defaultState());
+  try { (frozen.gold as { m: number }).m = 9; } catch { /* strict mode throws */ }
+  ok(frozen.gold.m === 0, "frozen state can't be edited from outside");
+}
+
+// anti-cheat: signed saves
+{
+  const st = { ...defaultState(), gold: fromNumber(1234) };
+  const enc = encodeSave(st);
+  ok(decodeSave(enc).status === "ok", "signed save round-trips");
+  const w = JSON.parse(enc);
+  w.d = w.d.replace('"gold":{"m":1.234,"e":3}', '"gold":{"m":9,"e":99}');
+  ok(w.d.includes('"e":99') && decodeSave(JSON.stringify(w)).status === "tampered", "edited signed save is rejected");
+  const unsignedNew = JSON.stringify({ ...st, lastSaved: LEGACY_CUTOFF + 1000 });
+  ok(decodeSave(unsignedNew).status === "tampered", "unsigned save written after cutoff is rejected");
+  const legacyOk = JSON.stringify({ ...st, stats: { ...st.stats, totalGold: fromNumber(5000) }, lastSaved: LEGACY_CUTOFF - 1000 });
+  ok(decodeSave(legacyOk).status === "legacy", "genuine pre-update save still loads");
+  const legacyFake = JSON.stringify({ ...st, gold: fromNumber(1e50), lastSaved: LEGACY_CUTOFF - 1000 });
+  ok(decodeSave(legacyFake).status === "tampered", "implausible legacy save rejected");
+  ok(fromExportString(toExportString(st)).status === "ok", "export string round-trips");
+}
+
+// anti-cheat: trusted events
+ok(!isTrustedEvent({ isTrusted: true }), "fake event object is untrusted");
+ok(!isTrustedEvent(null), "null is untrusted");
+ok(looksRobotic(Array.from({ length: 40 }, () => 50 + Math.random() * 1.2)), "macro rhythm flagged as autoclicker");
+ok(!looksRobotic(Array.from({ length: 40 }, () => 90 + Math.random() * 60)), "human rhythm not flagged");
 
 console.log(fails ? `\n${fails} FAILED` : "\nall tests passed");
 process.exit(fails ? 1 : 0);

@@ -40,6 +40,7 @@ export function StatsPanel() {
     ["Lifetime gold", g.fmt(s.stats.totalGold)],
     ["Gold this run", g.fmt(s.stats.runGold)],
     ["Play time", dur(s.stats.playTime)],
+    ["Anti-cheat", s.stats.tamper > 0 ? `${formatInt(s.stats.tamper)} blocked` : "Clean ✓"],
   ];
   return (
     <dl className="grid grid-cols-2 gap-1.5">

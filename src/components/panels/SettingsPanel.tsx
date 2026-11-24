@@ -61,7 +61,7 @@ export function SettingsPanel() {
         <span><kbd>←</kbd> <kbd>→</kbd> change zone</span>
         <span><kbd>Q</kbd> cycle buy amount</span>
       </div>
-      <p className="text-[10px] text-white/30 text-center pt-2">Realm Clicker · an original idle RPG · saves stay in this browser</p>
+      <p className="text-[10px] text-white/30 text-center pt-2">Realm Clicker · an original idle RPG · saves stay in this browser and are signed — edited saves are rejected</p>
     </div>
   );
 }

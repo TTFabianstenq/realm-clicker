@@ -40,6 +40,17 @@ npm run build      # production build to dist/
 
 Deploys on Vercel with the Vite preset (`vercel.json`).
 
+## Anti-cheat
+
+- The real game state lives in a private module, never on `window` or in React state, and every state object is deep-frozen — console edits and React DevTools changes do nothing (injected state is detected and reverted).
+- Clicks only count from genuine input (`isTrusted`, checked with the native getter), so `element.click()`, `dispatchEvent` and bookmarklet cheat menus are ignored. Player actions require real recent input too.
+- Clicks are capped at 25/s, and machine-perfect click rhythms (autoclickers) pause clicking for 15 s.
+- Native timers are captured before any other script runs, and game time is checked against the server (`/api/time`), so speed hacks and changing the device clock don't help. Offline progress uses server time.
+- Saves and exports are signed; hand-edited saves are rejected and the last verified backup is restored.
+- Blocked attempts are counted in Stats.
+
+It's all client-side (there are no accounts), so someone determined with a debugger can still get around it — but the easy routes are closed.
+
 ## Saves
 
-Saves live in `localStorage` under `realm-clicker-save-v1` and autosave every 5 seconds. Version 1 saves are migrated automatically (heroes, upgrades, Essence and prestige levels carry over). Export/import uses a base64 string; imported data is parsed and validated field by field and never executed.
+Saves live in `localStorage` under `realm-clicker-save-v1` (signed) with a backup copy, and autosave every 5 seconds. Version 1 saves are migrated automatically (heroes, upgrades, Essence and prestige levels carry over). Export/import uses a base64 string; imported data is parsed and validated field by field and never executed.

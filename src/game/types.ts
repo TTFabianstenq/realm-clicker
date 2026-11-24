@@ -50,6 +50,8 @@ export interface Stats {
   skillsUsed: number;
   bestCombo: number;
   totalEssence: number;
+  /** cheat attempts blocked by the anti-cheat */
+  tamper: number;
   runGold: Dec;
   runStart: number;
 }

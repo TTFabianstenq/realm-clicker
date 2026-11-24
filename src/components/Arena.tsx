@@ -144,7 +144,7 @@ export function Arena() {
   function onPointer(e: PointerEvent<HTMLButtonElement>) {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     const r = e.currentTarget.getBoundingClientRect();
-    g.act.click(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+    g.act.click(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100, e.nativeEvent);
   }
 
   return (
@@ -167,7 +167,7 @@ export function Arena() {
           type="button"
           onPointerDown={onPointer}
           onContextMenu={(e) => e.preventDefault()}
-          onKeyDown={(e) => { if (e.key === "Enter") g.act.click(50, 45); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.repeat) g.act.click(50, 45, e.nativeEvent); }}
           className="monster-btn relative flex-1 w-full max-w-[560px] min-h-[220px] touch-manipulation select-none"
           aria-label={`Attack ${name}`}
         >
