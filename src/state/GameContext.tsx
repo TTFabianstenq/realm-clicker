@@ -357,6 +357,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       startGame: () => {
         unlockAudio();
         run((st) => ({ s: { ...st, introSeen: true }, ev: [] }));
+        persist(true);
       },
     };
   }, [run, pushToast, guard, userOnly, flagTamper, throttledFlag]);

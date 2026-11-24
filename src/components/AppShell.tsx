@@ -193,14 +193,6 @@ export function AppShell() {
         </Modal>
       )}
 
-      {g.notice && s.introSeen && (
-        <Modal onClose={g.dismissNotice}>
-          <h2 className="font-display text-xl text-red-300">🛡 Save integrity check</h2>
-          <p className="text-sm text-white/70">{g.notice}</p>
-          <button onClick={g.dismissNotice} className="btn-gold w-full py-2.5">OK</button>
-        </Modal>
-      )}
-
       {g.modal === "reset" && (
         <Modal onClose={() => g.setModal(null)}>
           <h2 className="font-display text-xl text-red-300">Erase all progress?</h2>
@@ -226,6 +218,14 @@ export function AppShell() {
           <button onClick={() => g.setModal(null)} className="btn-gold w-full py-2.5">Got it</button>
         </Modal>
       )}
+      {g.notice && (
+        <Modal onClose={g.dismissNotice}>
+          <h2 className="font-display text-xl text-red-300">🛡 Save integrity check</h2>
+          <p className="text-sm text-white/70">{g.notice}</p>
+          <button onClick={g.dismissNotice} className="btn-gold w-full py-2.5">OK</button>
+        </Modal>
+      )}
+
     </div>
   );
 }
